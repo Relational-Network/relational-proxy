@@ -1,0 +1,65 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Relational Network
+#
+# Local development docker-compose
+# Uses self-signed certificates for testing without a domain
+
+services:
+  # Caddy with self-signed cert
+  caddy:
+    image: caddy:2-alpine
+    container_name: relational-caddy-local
+    ports:
+      - "443:443"
+      - "80:80"
+    volumes:
+      - ./Caddyfile.local:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - relational-network
+    depends_on:
+      - avs
+
+  # AVS
+  avs:
+    image: ghcr.io/relational-network/attestation-verification-service:latest
+    container_name: relational-avs-local
+    expose:
+      - "9100"
+    environment:
+      - AVS_BIND_ADDR=0.0.0.0:9100
+      - AVS_SIGNING_KEY_PATH=/secrets/avs-signing-key.pem
+      - AVS_EXPECTED_MRSIGNER=${AVS_EXPECTED_MRSIGNER:-777d23b75d3974a2a67224e49e78a45f65537861605cc0b86cb92e8d79a8d243}
+      - AVS_ALLOW_DEBUG_ENCLAVE=1
+      - AVS_ALLOW_OUTDATED_TCB=1
+      - RUST_LOG=debug
+    volumes:
+      - ${SECRETS_DIR:-./secrets}:/secrets:ro
+    networks:
+      - relational-network
+
+  # Enclave (requires SGX hardware)
+  enclave:
+    image: ghcr.io/relational-network/relational-sdk:latest
+    container_name: relational-enclave-local
+    expose:
+      - "8080"
+    devices:
+      - /dev/sgx/enclave:/dev/sgx/enclave
+      - /dev/sgx/provision:/dev/sgx/provision
+    environment:
+      - GRAMINE_SGX_SIGNING_KEY=/keys/enclave-key.pem
+      - AVS_JWKS_URL=http://avs:9100/.well-known/jwks.json
+    volumes:
+      - ${ENCLAVE_KEY_PATH:-~/.config/gramine/enclave-key.pem}:/keys/enclave-key.pem:ro
+    networks:
+      - relational-network
+
+networks:
+  relational-network:
+    driver: bridge
+
+volumes:
+  caddy_data:
+  caddy_config:

@@ -1,0 +1,150 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Relational Network
+#
+# Relational Proxy - Caddy Configuration for Pilot Deployment
+# ============================================================
+#
+# This Caddyfile configures Caddy as a reverse proxy for:
+# - AVS (attestation-verification-service) on localhost:9100
+# - Enclave (relational-sdk) on localhost:8080 (RA-TLS)
+#
+# Caddy provides valid Let's Encrypt TLS certificates so browsers
+# can connect without certificate warnings.
+#
+# Environment Variables (set in .env or docker-compose):
+#   PILOT_DOMAIN     - Your domain (e.g., pilot.example.com)
+#   DASHBOARD_ORIGIN - Dashboard URL for CORS (e.g., https://app.example.com)
+#
+# Usage:
+#   1. Copy .env.example to .env and configure
+#   2. Run: caddy run --config Caddyfile --envfile .env
+#
+# For local testing without a domain:
+#   caddy run --config Caddyfile.local
+
+# Production configuration with Let's Encrypt
+{$PILOT_DOMAIN} {
+    # Logging
+    log {
+        output file /var/log/caddy/access.log
+        format json
+    }
+
+    # Security headers
+    header {
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        -Server
+    }
+
+    # CORS for dashboard (origin from env)
+    @cors_preflight method OPTIONS
+    handle @cors_preflight {
+        header Access-Control-Allow-Origin "{$DASHBOARD_ORIGIN}"
+        header Access-Control-Allow-Methods "GET, POST, OPTIONS"
+        header Access-Control-Allow-Headers "Content-Type, Authorization"
+        header Access-Control-Max-Age "86400"
+        respond 204
+    }
+
+    # Add CORS headers to all responses
+    header Access-Control-Allow-Origin "{$DASHBOARD_ORIGIN}"
+
+    # ============================================
+    # AVS Endpoints (HTTP backend on port 9100)
+    # ============================================
+    
+    # Attestation endpoint
+    handle /v1/attest* {
+        reverse_proxy localhost:9100
+    }
+
+    # JWKS endpoint for token verification
+    handle /.well-known/* {
+        reverse_proxy localhost:9100
+    }
+
+    # AVS health check
+    handle /avs/health {
+        uri strip_prefix /avs
+        reverse_proxy localhost:9100
+    }
+
+    # AVS Swagger docs
+    handle /avs/docs* {
+        uri strip_prefix /avs
+        reverse_proxy localhost:9100
+    }
+
+    # ============================================
+    # Enclave Endpoints (HTTPS/RA-TLS on port 8080)
+    # ============================================
+    
+    # Enclave public key for encryption
+    handle /v1/attestation/* {
+        reverse_proxy https://localhost:8080 {
+            transport http {
+                tls_insecure_skip_verify
+            }
+        }
+    }
+
+    # Data upload endpoint
+    handle /v1/data/* {
+        reverse_proxy https://localhost:8080 {
+            transport http {
+                tls_insecure_skip_verify
+            }
+        }
+    }
+
+    # Protected endpoints
+    handle /v1/protected* {
+        reverse_proxy https://localhost:8080 {
+            transport http {
+                tls_insecure_skip_verify
+            }
+        }
+    }
+
+    # Admin endpoints
+    handle /v1/admin/* {
+        reverse_proxy https://localhost:8080 {
+            transport http {
+                tls_insecure_skip_verify
+            }
+        }
+    }
+
+    # Enclave health check (default /health goes to enclave)
+    handle /health {
+        reverse_proxy https://localhost:8080 {
+            transport http {
+                tls_insecure_skip_verify
+            }
+        }
+    }
+
+    # Enclave Swagger docs
+    handle /docs* {
+        reverse_proxy https://localhost:8080 {
+            transport http {
+                tls_insecure_skip_verify
+            }
+        }
+    }
+
+    handle /api-doc/* {
+        reverse_proxy https://localhost:8080 {
+            transport http {
+                tls_insecure_skip_verify
+            }
+        }
+    }
+
+    # Default: 404
+    handle {
+        respond "Not Found" 404
+    }
+}

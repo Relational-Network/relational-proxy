@@ -1,0 +1,4 @@
+# Minimal test Caddyfile - HTTP only
+:8888 {
+    respond "Caddy is working!" 200
+}

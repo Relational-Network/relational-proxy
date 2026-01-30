@@ -1,0 +1,33 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Relational Network
+
+# Environment files (contain secrets)
+.env
+.env.local
+.env.production
+
+# Secrets directory
+secrets/
+!secrets/.gitkeep
+
+# Data directory (encrypted storage)
+data/
+
+# Caddy data (certificates, etc.)
+caddy_data/
+caddy_config/
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+*.swp
+*.swo
+*~
+.idea/
+.vscode/

@@ -1,0 +1,77 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Relational Network
+
+services:
+  # ===========================================
+  # Caddy - Reverse Proxy with Let's Encrypt
+  # ===========================================
+  caddy:
+    image: caddy:2-alpine
+    container_name: relational-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      - PILOT_DOMAIN=${PILOT_DOMAIN}
+      - DASHBOARD_ORIGIN=${DASHBOARD_ORIGIN:-https://localhost:3000}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+      - /var/log/caddy:/var/log/caddy
+    networks:
+      - relational-network
+    depends_on:
+      - avs
+
+  # ===========================================
+  # AVS - Attestation Verification Service
+  # ===========================================
+  avs:
+    image: ghcr.io/relational-network/attestation-verification-service:latest
+    container_name: relational-avs
+    restart: unless-stopped
+    expose:
+      - "9100"
+    environment:
+      - AVS_BIND_ADDR=0.0.0.0:9100
+      - AVS_SIGNING_KEY_PATH=/secrets/avs-signing-key.pem
+      - AVS_EXPECTED_MRSIGNER=${AVS_EXPECTED_MRSIGNER}
+      - AVS_EXPECTED_MRENCLAVE=${AVS_EXPECTED_MRENCLAVE:-}
+      - AVS_ALLOW_DEBUG_ENCLAVE=${AVS_ALLOW_DEBUG_ENCLAVE:-0}
+      - AVS_ALLOW_OUTDATED_TCB=${AVS_ALLOW_OUTDATED_TCB:-0}
+      - RUST_LOG=${RUST_LOG:-info}
+    volumes:
+      - ${SECRETS_DIR:-./secrets}:/secrets:ro
+    networks:
+      - relational-network
+
+  # ===========================================
+  # Enclave - Relational SDK (SGX)
+  # ===========================================
+  enclave:
+    image: ghcr.io/relational-network/relational-sdk:latest
+    container_name: relational-enclave
+    restart: unless-stopped
+    expose:
+      - "8080"
+    devices:
+      - /dev/sgx/enclave:/dev/sgx/enclave
+      - /dev/sgx/provision:/dev/sgx/provision
+    environment:
+      - GRAMINE_SGX_SIGNING_KEY=/keys/enclave-key.pem
+      - AVS_JWKS_URL=http://avs:9100/.well-known/jwks.json
+    volumes:
+      - ${ENCLAVE_KEY_PATH:-~/.config/gramine/enclave-key.pem}:/keys/enclave-key.pem:ro
+      - ${DATA_DIR:-./data}:/data
+    networks:
+      - relational-network
+
+networks:
+  relational-network:
+    driver: bridge
+
+volumes:
+  caddy_data:
+  caddy_config:
