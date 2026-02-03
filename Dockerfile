@@ -30,12 +30,9 @@ LABEL org.opencontainers.image.licenses="AGPL-3.0-or-later"
 # Copy Caddyfile into the container
 COPY Caddyfile /etc/caddy/Caddyfile
 
-# Create log directory (caddy:2-alpine runs as root by default)
-RUN mkdir -p /var/log/caddy
-
 # Caddy stores certificates in /data and config in /config
 # These should be mounted as volumes for persistence
-VOLUME ["/data", "/config", "/var/log/caddy"]
+VOLUME ["/data", "/config"]
 
 # Expose HTTP and HTTPS ports
 EXPOSE 80 443

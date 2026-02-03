@@ -24,9 +24,9 @@
 
 # Production configuration with Let's Encrypt
 {$PILOT_DOMAIN} {
-	# Logging
+	# Logging (stdout for Docker compatibility)
 	log {
-		output file /var/log/caddy/access.log
+		output stdout
 		format json
 	}
 
