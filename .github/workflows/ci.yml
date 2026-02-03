@@ -1,0 +1,66 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Relational Network
+#
+# CI workflow for relational-proxy
+# Validates Caddyfile syntax on PRs and pushes
+
+name: CI
+
+on:
+  push:
+    branches: [main, staging]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    name: Validate Caddyfile
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Caddy
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y debian-keyring debian-archive-keyring apt-transport-https curl
+          curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/gpg.key' | sudo gpg --dearmor -o /usr/share/keyrings/caddy-stable-archive-keyring.gpg
+          curl -1sLf 'https://dl.cloudsmith.io/public/caddy/stable/debian.deb.txt' | sudo tee /etc/apt/sources.list.d/caddy-stable.list
+          sudo apt-get update
+          sudo apt-get install -y caddy
+
+      - name: Check Caddyfile formatting
+        run: |
+          echo "Checking Caddyfile formatting..."
+          caddy fmt --diff Caddyfile || (echo "❌ Caddyfile is not formatted. Run 'caddy fmt --overwrite Caddyfile'" && exit 1)
+          caddy fmt --diff Caddyfile.local || (echo "❌ Caddyfile.local is not formatted. Run 'caddy fmt --overwrite Caddyfile.local'" && exit 1)
+          echo "✅ Caddyfile formatting OK"
+
+      - name: Validate Caddyfile syntax
+        env:
+          # Dummy values for validation (Caddy needs env vars to parse)
+          PILOT_DOMAIN: test.example.com
+          DASHBOARD_ORIGIN: https://dashboard.example.com
+        run: |
+          echo "Validating Caddyfile syntax..."
+          caddy validate --config Caddyfile --envfile .env.example || exit 1
+          echo "✅ Caddyfile syntax valid"
+          
+          echo "Validating Caddyfile.local syntax..."
+          caddy validate --config Caddyfile.local || exit 1
+          echo "✅ Caddyfile.local syntax valid"
+
+  dockerfile-lint:
+    name: Lint Dockerfile
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Lint Dockerfile with hadolint
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: Dockerfile
+          failure-threshold: warning

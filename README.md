@@ -24,7 +24,7 @@ Caddy reverse proxy configuration for Relational Network.
                          Internet
                              │
                       [Your Domain]
-                   pilot.project.com
+              iob-staging.duckdns.org (staging)
                              │
                      ┌───────┴───────┐
                      │    Caddy      │
@@ -51,13 +51,80 @@ Caddy reverse proxy configuration for Relational Network.
 3. **Docker** and **Docker Compose** installed
 4. **Gramine enclave signing key** at `~/.config/gramine/enclave-key.pem`
 
-## Quick Start
+## Staging Deployment
+
+**Live URL:** https://iob-staging.duckdns.org
+
+**Docker Image:** `ghcr.io/relational-network/relational-proxy:staging-latest`
+
+The staging deployment runs as a Docker container on the Azure DCsv3 VM (`iob-staging`).
+
+### Verify Deployment
+
+```bash
+# Check health via Caddy
+curl https://iob-staging.duckdns.org/health
+
+# Check AVS JWKS
+curl https://iob-staging.duckdns.org/.well-known/jwks.json
+
+# Test attestation
+curl -X POST https://iob-staging.duckdns.org/v1/attest \
+  -H 'Content-Type: application/json' \
+  -d '{"enclave_url":"https://127.0.0.1:8080","user_id":"test","role":"user"}'
+```
+
+## CI/CD
+
+This repo uses GitHub Actions for CI/CD:
+
+- **CI** (`.github/workflows/ci.yml`): Runs on push/PR
+  - Validates Caddyfile syntax (`caddy validate`)
+  - Checks formatting (`caddy fmt --diff`)
+  - Lints Dockerfile with hadolint
+
+- **CD** (`.github/workflows/cd-staging.yml`): Runs on push to `main`
+  - Builds Docker image
+  - Pushes to GHCR (`ghcr.io/relational-network/relational-proxy:staging-latest`)
+  - Deploys to staging VM via SSH
+
+### Required GitHub Secrets
+
+| Secret | Description |
+|--------|-------------|
+| `STAGING_HOST` | Staging VM IP (e.g., `20.86.174.127`) |
+| `STAGING_USER` | SSH user (e.g., `azureuser`) |
+| `STAGING_SSH_KEY` | SSH private key for deployment |
+| `GITHUB_TOKEN` | Automatic, for GHCR push |
+
+## Docker
+
+The Dockerfile is based on `caddy:2-alpine` with the production Caddyfile baked in.
+
+### Build Locally
+
+```bash
+docker build -t relational-proxy .
+```
+
+### Run Locally
+
+```bash
+docker run -d --name caddy \
+  --network host \
+  -e PILOT_DOMAIN=localhost \
+  -e DASHBOARD_ORIGIN=http://localhost:3000 \
+  -v caddy_data:/data \
+  -v caddy_config:/config \
+  relational-proxy
+```
+
+## Quick Start (Local Development)
 
 ### 1. Clone and Configure
 
 ```bash
-# On your Azure VM
-git clone https://github.com/your-org/relational-proxy.git
+git clone https://github.com/Relational-Network/relational-proxy.git
 cd relational-proxy
 
 # Create environment file
@@ -65,59 +132,14 @@ cp .env.example .env
 nano .env  # Edit with your domain and measurements
 ```
 
-### 2. Generate Secrets
+### 2. Run with Local Caddyfile
 
 ```bash
-mkdir -p secrets
+# Using native Caddy (self-signed TLS on :8443)
+caddy run --config Caddyfile.local
 
-# Generate AVS signing key
-openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256 -out secrets/avs-signing-key.pem
-
-# Generate Gramine enclave key (if not exists)
-mkdir -p ~/.config/gramine
-gramine-sgx-gen-private-key ~/.config/gramine/enclave-key.pem
-```
-
-### 3. Get Enclave Measurements
-
-Build the enclave and extract measurements:
-
-```bash
-cd ../../relational-sdk
-make SGX=1 RA_TYPE=dcap
-gramine-sgx-sigstruct-view relational-sdk.sig | grep -E "mr_signer|mr_enclave"
-
-# Update .env with the measurements
-cd ../deploy/caddy
-nano .env
-```
-
-### 4. Start Services
-
-```bash
-# Pull latest images
-docker compose pull
-
-# Start all services
-docker compose up -d
-
-# Check logs
-docker compose logs -f
-```
-
-### 5. Verify Deployment
-
-```bash
-# Check Caddy obtained certificates
-curl https://pilot.project.com.com/health
-
-# Check AVS
-curl https://pilot.project.com/.well-known/jwks.json
-
-# Test attestation
-curl -X POST https://pilot.project.com.com/v1/attest \
-  -H 'Content-Type: application/json' \
-  -d '{"enclave_url":"https://localhost:8080","user_id":"test","role":"user"}'
+# Or using Docker Compose
+docker compose -f docker-compose.local.yml up -d
 ```
 
 ## Configuration
@@ -218,16 +240,22 @@ Before going live:
 
 ## Updating
 
+Updates are automatic via CI/CD on push to `main`. For manual updates:
+
 ```bash
-# Pull latest images
-docker compose pull
+# SSH to staging VM
+ssh azureuser@20.86.174.127
 
-# Restart with new images
-docker compose up -d
-
-# If enclave code changed, update measurements in .env
+# Pull latest image and restart
+docker pull ghcr.io/relational-network/relational-proxy:staging-latest
+sudo systemctl restart caddy-docker
 ```
+
+## Related Documentation
+
+- [STAGING-DEPLOYMENT.md](../STAGING-DEPLOYMENT.md) - Full staging deployment guide
+- [AGENTS.md](../AGENTS.md) - Architecture and development context
 
 ## License
 
-See repository root for license information.
+AGPL-3.0-or-later. See [LICENSE](LICENSE) for details.
