@@ -84,11 +84,18 @@ jobs:
             echo "=== Restarting Caddy service ==="
             sudo systemctl restart caddy-docker
             
+            echo "=== Cleaning up old images ==="
+            docker image prune -f
+            
             echo "=== Waiting for Caddy to start ==="
             sleep 5
             
             echo "=== Verifying deployment ==="
-            curl -sf https://localhost/health -k > /dev/null && echo "✅ Caddy health OK" || echo "⚠️ Caddy health check failed"
+            # Check if container is running
+            docker ps | grep -q caddy && echo "✅ Caddy container running" || (echo "❌ Caddy container not running" && exit 1)
+            # Check if ports are listening
+            ss -tulpn | grep -q ':443' && echo "✅ HTTPS port 443 listening" || echo "⚠️ Port 443 not listening"
+            ss -tulpn | grep -q ':80' && echo "✅ HTTP port 80 listening" || echo "⚠️ Port 80 not listening"
             
             echo "=== Deployment complete ==="
         env:
