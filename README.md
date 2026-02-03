@@ -251,6 +251,34 @@ docker pull ghcr.io/relational-network/relational-proxy:staging-latest
 sudo systemctl restart caddy-docker
 ```
 
+## Systemd Service (Docker-based)
+
+The proxy runs as a Docker container managed by systemd for auto-start on boot:
+
+```bash
+# Install service file (from this repo)
+sudo cp scripts/caddy-docker.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable caddy-docker
+sudo systemctl start caddy-docker
+
+# View logs
+sudo journalctl -u caddy-docker -f
+
+# Status
+sudo systemctl status caddy-docker
+```
+
+**Prerequisites on the VM:**
+- Docker installed and running
+- Environment file at `/etc/caddy/environment` with:
+  ```bash
+  STAGING_DOMAIN=iob-staging.duckdns.org
+  DASHBOARD_ORIGIN=https://iob-dashboard.vercel.app
+  ```
+
+**Note:** Stop native Caddy if running: `sudo systemctl stop caddy && sudo systemctl disable caddy`
+
 ## Related Documentation
 
 - [STAGING-DEPLOYMENT.md](../STAGING-DEPLOYMENT.md) - Full staging deployment guide

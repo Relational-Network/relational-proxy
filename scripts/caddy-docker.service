@@ -1,0 +1,58 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+# Copyright (C) 2026 Relational Network
+#
+# Systemd service for Caddy Reverse Proxy (Docker)
+#
+# Installation:
+#   sudo cp caddy-docker.service /etc/systemd/system/caddy-docker.service
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable caddy-docker
+#   sudo systemctl start caddy-docker
+#
+# Logs:
+#   sudo journalctl -u caddy-docker -f
+#
+# Prerequisites:
+#   - Docker installed and running
+#   - Ports 80 and 443 available (stop native Caddy if running)
+#   - Environment file at /etc/caddy/environment with:
+#       STAGING_DOMAIN=iob-staging.duckdns.org
+#       DASHBOARD_ORIGIN=https://iob-dashboard.vercel.app
+#
+# Note: This uses Docker instead of native Caddy to match the CI/CD pipeline
+# and ensure consistent behavior between local and deployed environments.
+
+[Unit]
+Description=Caddy Reverse Proxy (Docker)
+After=docker.service
+Requires=docker.service
+
+[Service]
+Type=simple
+Restart=always
+RestartSec=5
+EnvironmentFile=/etc/caddy/environment
+
+# Stop and remove any existing container
+ExecStartPre=-/usr/bin/docker stop caddy
+ExecStartPre=-/usr/bin/docker rm caddy
+
+# Pull latest image
+ExecStartPre=/usr/bin/docker pull ghcr.io/relational-network/relational-proxy:staging-latest
+
+# Run the Caddy container
+# - Binds ports 80 and 443 for HTTP/HTTPS
+# - Mounts Caddy data/config for Let's Encrypt certs
+# - Uses host networking for backend services
+ExecStart=/usr/bin/docker run --rm --name caddy \
+    --network host \
+    -v caddy_data:/data \
+    -v caddy_config:/config \
+    -e STAGING_DOMAIN=${STAGING_DOMAIN} \
+    -e DASHBOARD_ORIGIN=${DASHBOARD_ORIGIN} \
+    ghcr.io/relational-network/relational-proxy:staging-latest
+
+ExecStop=/usr/bin/docker stop caddy
+
+[Install]
+WantedBy=multi-user.target
