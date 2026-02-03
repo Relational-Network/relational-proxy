@@ -71,8 +71,12 @@ jobs:
           host: ${{ secrets.STAGING_HOST }}
           username: ${{ secrets.STAGING_USER }}
           key: ${{ secrets.STAGING_SSH_KEY }}
+          envs: GHCR_TOKEN
           script: |
             set -e
+            
+            echo "=== Logging into GHCR ==="
+            echo "$GHCR_TOKEN" | docker login ghcr.io -u relational-network --password-stdin
             
             echo "=== Pulling latest Caddy image ==="
             docker pull ghcr.io/relational-network/relational-proxy:staging-latest
@@ -84,6 +88,8 @@ jobs:
             sleep 5
             
             echo "=== Verifying deployment ==="
-            curl -sf http://localhost:80 > /dev/null && echo "✅ Caddy responding on port 80" || echo "⚠️ Caddy not responding on port 80 (may be expected if no default route)"
+            curl -sf https://localhost/health -k > /dev/null && echo "✅ Caddy health OK" || echo "⚠️ Caddy health check failed"
             
             echo "=== Deployment complete ==="
+        env:
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
