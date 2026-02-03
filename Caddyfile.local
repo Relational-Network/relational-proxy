@@ -3,88 +3,87 @@
 #
 # Local Development Caddyfile with TLS
 # Uses self-signed certificate - working version
-
 {
-    local_certs
-    skip_install_trust
+	local_certs
+	skip_install_trust
 }
 
 :8443 {
-    tls internal
-    
-    # CORS
-    header Access-Control-Allow-Origin "*"
-    header Access-Control-Allow-Methods "GET, POST, OPTIONS"
-    header Access-Control-Allow-Headers "Content-Type, Authorization"
-    
-    @cors method OPTIONS
-    handle @cors {
-        respond 204
-    }
+	tls internal
 
-    # AVS endpoints
-    handle /v1/attest* {
-        reverse_proxy http://localhost:9100
-    }
-    handle /.well-known/* {
-        reverse_proxy http://localhost:9100
-    }
-    handle /avs/* {
-        uri strip_prefix /avs
-        reverse_proxy http://localhost:9100
-    }
+	# CORS
+	header Access-Control-Allow-Origin "*"
+	header Access-Control-Allow-Methods "GET, POST, OPTIONS"
+	header Access-Control-Allow-Headers "Content-Type, Authorization"
 
-    # Enclave endpoints (RA-TLS)
-    handle /v1/attestation/* {
-        reverse_proxy https://localhost:8080 {
-            transport http {
-                tls_insecure_skip_verify
-            }
-        }
-    }
-    handle /v1/data/* {
-        reverse_proxy https://localhost:8080 {
-            transport http {
-                tls_insecure_skip_verify
-            }
-        }
-    }
-    handle /v1/protected* {
-        reverse_proxy https://localhost:8080 {
-            transport http {
-                tls_insecure_skip_verify
-            }
-        }
-    }
-    handle /v1/admin/* {
-        reverse_proxy https://localhost:8080 {
-            transport http {
-                tls_insecure_skip_verify
-            }
-        }
-    }
-    handle /health {
-        reverse_proxy https://localhost:8080 {
-            transport http {
-                tls_insecure_skip_verify
-            }
-        }
-    }
-    handle /docs* {
-        reverse_proxy https://localhost:8080 {
-            transport http {
-                tls_insecure_skip_verify
-            }
-        }
-    }
-    handle /api-doc/* {
-        reverse_proxy https://localhost:8080 {
-            transport http {
-                tls_insecure_skip_verify
-            }
-        }
-    }
-    handle {
-        respond "Not Found" 404
-    }
+	@cors method OPTIONS
+	handle @cors {
+		respond 204
+	}
+
+	# AVS endpoints
+	handle /v1/attest* {
+		reverse_proxy http://localhost:9100
+	}
+	handle /.well-known/* {
+		reverse_proxy http://localhost:9100
+	}
+	handle /avs/* {
+		uri strip_prefix /avs
+		reverse_proxy http://localhost:9100
+	}
+
+	# Enclave endpoints (RA-TLS)
+	handle /v1/attestation/* {
+		reverse_proxy https://localhost:8080 {
+			transport http {
+				tls_insecure_skip_verify
+			}
+		}
+	}
+	handle /v1/data/* {
+		reverse_proxy https://localhost:8080 {
+			transport http {
+				tls_insecure_skip_verify
+			}
+		}
+	}
+	handle /v1/protected* {
+		reverse_proxy https://localhost:8080 {
+			transport http {
+				tls_insecure_skip_verify
+			}
+		}
+	}
+	handle /v1/admin/* {
+		reverse_proxy https://localhost:8080 {
+			transport http {
+				tls_insecure_skip_verify
+			}
+		}
+	}
+	handle /health {
+		reverse_proxy https://localhost:8080 {
+			transport http {
+				tls_insecure_skip_verify
+			}
+		}
+	}
+	handle /docs* {
+		reverse_proxy https://localhost:8080 {
+			transport http {
+				tls_insecure_skip_verify
+			}
+		}
+	}
+	handle /api-doc/* {
+		reverse_proxy https://localhost:8080 {
+			transport http {
+				tls_insecure_skip_verify
+			}
+		}
+	}
+	handle {
+		respond "Not Found" 404
+	}
 }
