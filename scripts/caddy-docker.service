@@ -16,7 +16,7 @@
 #   - Docker installed and running
 #   - Ports 80 and 443 available (stop native Caddy if running)
 #   - Environment file at /etc/caddy/environment with:
-#       STAGING_DOMAIN=iob-staging.duckdns.org
+#       PILOT_DOMAIN=iob-staging.duckdns.org
 #       DASHBOARD_ORIGIN=https://iob-dashboard.vercel.app
 #
 # Note: This uses Docker instead of native Caddy to match the CI/CD pipeline
@@ -51,7 +51,7 @@ ExecStart=/usr/bin/docker run --rm --name caddy \
     --network host \
     -v caddy_data:/data \
     -v caddy_config:/config \
-    -e STAGING_DOMAIN=${STAGING_DOMAIN} \
+    -e PILOT_DOMAIN=${PILOT_DOMAIN} \
     -e DASHBOARD_ORIGIN=${DASHBOARD_ORIGIN} \
     ghcr.io/relational-network/relational-proxy:staging-latest
 
