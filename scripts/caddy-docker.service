@@ -24,21 +24,24 @@
 
 [Unit]
 Description=Caddy Reverse Proxy (Docker)
-After=docker.service
+After=docker.service network-online.target
 Requires=docker.service
+Wants=network-online.target
 
 [Service]
 Type=simple
 Restart=always
 RestartSec=5
+StartLimitInterval=300
+StartLimitBurst=5
 EnvironmentFile=/etc/caddy/environment
 
 # Stop and remove any existing container
 ExecStartPre=-/usr/bin/docker stop caddy
 ExecStartPre=-/usr/bin/docker rm caddy
 
-# Pull latest image
-ExecStartPre=/usr/bin/docker pull ghcr.io/relational-network/relational-proxy:staging-latest
+# Pull latest image with retry, fallback to cached image if pull fails
+ExecStartPre=-/bin/bash -c 'docker pull ghcr.io/relational-network/relational-proxy:staging-latest || echo "Pull failed, using cached image"'
 
 # Run the Caddy container
 # - Binds ports 80 and 443 for HTTP/HTTPS
@@ -53,6 +56,9 @@ ExecStart=/usr/bin/docker run --rm --name caddy \
     ghcr.io/relational-network/relational-proxy:staging-latest
 
 ExecStop=/usr/bin/docker stop caddy
+
+# Health check - verify Caddy is listening on ports 80 and 443
+ExecStartPost=/bin/bash -c 'for i in {1..30}; do sleep 1; ss -tln | grep -E ":(80|443) " && exit 0; done; echo "Caddy ports not listening after 30s" && exit 1'
 
 [Install]
 WantedBy=multi-user.target

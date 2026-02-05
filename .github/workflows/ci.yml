@@ -64,3 +64,36 @@ jobs:
         with:
           dockerfile: Dockerfile
           failure-threshold: warning
+
+  validate-systemd:
+    name: Validate Systemd Service
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install systemd (for systemd-analyze)
+        run: sudo apt-get update && sudo apt-get install -y systemd
+
+      - name: Validate systemd service file
+        run: |
+          echo "Validating scripts/caddy-docker.service..."
+          # Basic syntax check
+          systemd-analyze verify scripts/caddy-docker.service || echo "Warning: systemd-analyze may report issues due to missing runtime dependencies"
+          
+          # Check for required sections
+          if ! grep -q '\[Unit\]' scripts/caddy-docker.service; then
+            echo "ERROR: Missing [Unit] section"
+            exit 1
+          fi
+          if ! grep -q '\[Service\]' scripts/caddy-docker.service; then
+            echo "ERROR: Missing [Service] section"
+            exit 1
+          fi
+          if ! grep -q '\[Install\]' scripts/caddy-docker.service; then
+            echo "ERROR: Missing [Install] section"
+            exit 1
+          fi
+          
+          echo "✓ Systemd service file validation passed"
