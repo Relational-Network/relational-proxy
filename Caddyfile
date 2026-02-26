@@ -42,7 +42,7 @@
 	@cors_preflight method OPTIONS
 	handle @cors_preflight {
 		header Access-Control-Allow-Origin "{$DASHBOARD_ORIGIN}"
-		header Access-Control-Allow-Methods "GET, POST, OPTIONS"
+		header Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS"
 		header Access-Control-Allow-Headers "Content-Type, Authorization"
 		header Access-Control-Max-Age "86400"
 		respond 204
@@ -56,7 +56,8 @@
 	# ============================================
 
 	# Attestation endpoint
-	handle /v1/attest* {
+	@avs_attest path /v1/attest /v1/attest/
+	handle @avs_attest {
 		reverse_proxy localhost:9100
 	}
 
@@ -65,14 +66,12 @@
 		reverse_proxy localhost:9100
 	}
 
-	# AVS health check
-	handle /avs/health {
-		uri strip_prefix /avs
-		reverse_proxy localhost:9100
-	}
-
-	# AVS Swagger docs
-	handle /avs/docs* {
+	# AVS endpoints exposed under /avs/*
+	# Examples:
+	#   /avs/health     -> /health
+	#   /avs/docs       -> /docs
+	#   /avs/api-doc/*  -> /api-doc/*
+	handle /avs/* {
 		uri strip_prefix /avs
 		reverse_proxy localhost:9100
 	}
@@ -81,8 +80,9 @@
 	# Enclave Endpoints (HTTPS/RA-TLS on port 8080)
 	# ============================================
 
-	# Enclave public key for encryption
-	handle /v1/attestation/* {
+	# All enclave API endpoints use /v1/*, except /v1/attest which is handled above.
+	# This includes /v1/attestation/*, /v1/data/*, /v1/wallets*, /v1/drt/*, /v1/admin/*, etc.
+	handle /v1/* {
 		reverse_proxy https://localhost:8080 {
 			transport http {
 				tls_insecure_skip_verify
@@ -90,35 +90,8 @@
 		}
 	}
 
-	# Data upload endpoint
-	handle /v1/data/* {
-		reverse_proxy https://localhost:8080 {
-			transport http {
-				tls_insecure_skip_verify
-			}
-		}
-	}
-
-	# Protected endpoints
-	handle /v1/protected* {
-		reverse_proxy https://localhost:8080 {
-			transport http {
-				tls_insecure_skip_verify
-			}
-		}
-	}
-
-	# Admin endpoints
-	handle /v1/admin/* {
-		reverse_proxy https://localhost:8080 {
-			transport http {
-				tls_insecure_skip_verify
-			}
-		}
-	}
-
-	# Enclave health check (default /health goes to enclave)
-	handle /health {
+	# Enclave health checks
+	handle /health* {
 		reverse_proxy https://localhost:8080 {
 			transport http {
 				tls_insecure_skip_verify

@@ -13,7 +13,7 @@
 
 	# CORS
 	header Access-Control-Allow-Origin "*"
-	header Access-Control-Allow-Methods "GET, POST, OPTIONS"
+	header Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS"
 	header Access-Control-Allow-Headers "Content-Type, Authorization"
 
 	@cors method OPTIONS
@@ -22,47 +22,30 @@
 	}
 
 	# AVS endpoints
-	handle /v1/attest* {
+	# AVS attestation endpoint
+	@avs_attest path /v1/attest /v1/attest/
+	handle @avs_attest {
 		reverse_proxy http://localhost:9100
 	}
 	handle /.well-known/* {
 		reverse_proxy http://localhost:9100
 	}
+	# AVS endpoints exposed under /avs/*
 	handle /avs/* {
 		uri strip_prefix /avs
 		reverse_proxy http://localhost:9100
 	}
 
-	# Enclave endpoints (RA-TLS)
-	handle /v1/attestation/* {
+	# All enclave API endpoints use /v1/* except /v1/attest.
+	# This includes /v1/attestation/*, /v1/data/*, /v1/wallets*, /v1/drt/*, /v1/admin/*, etc.
+	handle /v1/* {
 		reverse_proxy https://localhost:8080 {
 			transport http {
 				tls_insecure_skip_verify
 			}
 		}
 	}
-	handle /v1/data/* {
-		reverse_proxy https://localhost:8080 {
-			transport http {
-				tls_insecure_skip_verify
-			}
-		}
-	}
-	handle /v1/protected* {
-		reverse_proxy https://localhost:8080 {
-			transport http {
-				tls_insecure_skip_verify
-			}
-		}
-	}
-	handle /v1/admin/* {
-		reverse_proxy https://localhost:8080 {
-			transport http {
-				tls_insecure_skip_verify
-			}
-		}
-	}
-	handle /health {
+	handle /health* {
 		reverse_proxy https://localhost:8080 {
 			transport http {
 				tls_insecure_skip_verify
