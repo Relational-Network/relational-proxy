@@ -33,9 +33,8 @@ Caddy reverse proxy configuration for Relational Network.
                              │
          ┌───────────────────┼───────────────────┐
          │                   │                   │
-    /v1/attest          /v1/data/*          /.well-known/*
-    /avs/*              /v1/attestation/*        
-         │              /health                  │
+    /v1/attest          /v1/* (except attest)   /.well-known/*
+    /avs/*              /health*                 │
          │              /docs                    │
          │                   │                   │
     ┌────┴────┐        ┌─────┴─────┐       ┌────┴────┐
@@ -163,11 +162,11 @@ The `Caddyfile` routes requests:
 
 | Path | Backend | Description |
 |------|---------|-------------|
-| `/v1/attest*` | AVS :9100 | Attestation requests |
+| `/v1/attest` | AVS :9100 | Attestation requests |
 | `/.well-known/*` | AVS :9100 | JWKS for token verification |
-| `/v1/data/*` | Enclave :8080 | Data upload/query |
-| `/v1/attestation/*` | Enclave :8080 | Public key endpoint |
-| `/health` | Enclave :8080 | Health check |
+| `/avs/*` | AVS :9100 (prefix stripped) | AVS health/docs/openapi endpoints |
+| `/v1/*` (except `/v1/attest`) | Enclave :8080 | Enclave APIs (`/v1/wallets`, `/v1/drt`, `/v1/data`, `/v1/attestation`, etc.) |
+| `/health*` | Enclave :8080 | Health checks (`/health`, `/health/live`, `/health/ready`) |
 | `/docs*` | Enclave :8080 | Swagger UI |
 
 ## Vercel Dashboard Configuration
