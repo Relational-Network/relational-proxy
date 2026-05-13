@@ -32,6 +32,7 @@
 
 	# Security headers
 	header {
+		Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
 		X-Content-Type-Options "nosniff"
 		X-Frame-Options "DENY"
 		Referrer-Policy "strict-origin-when-cross-origin"
@@ -50,6 +51,21 @@
 
 	# Add CORS headers to all responses
 	header Access-Control-Allow-Origin "{$DASHBOARD_ORIGIN}"
+
+	# ============================================
+	# Production Swagger / OpenAPI gating
+	# ============================================
+	# Block /docs and /api-doc on both AVS (/avs/docs, /avs/api-doc) and the
+	# enclave (/docs, /api-doc) unless EXPOSE_DOCS=1 is set in .env. OpenAPI
+	# schemas reveal every endpoint signature; keep them off the public
+	# internet by default. Set EXPOSE_DOCS=1 only for trusted/internal hosts.
+	@docs_disabled {
+		path /docs /docs/* /api-doc/* /avs/docs /avs/docs/* /avs/api-doc/*
+		expression {env.EXPOSE_DOCS} != "1"
+	}
+	handle @docs_disabled {
+		respond "Not Found" 404
+	}
 
 	# ============================================
 	# AVS Endpoints (HTTP backend on port 9100)
