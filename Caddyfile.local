@@ -21,6 +21,16 @@
 		respond 204
 	}
 
+	# Block Swagger / OpenAPI unless EXPOSE_DOCS=1 (matches production Caddyfile).
+	# Local dev usually wants docs on; export EXPOSE_DOCS=1 before `caddy run`.
+	@docs_disabled {
+		path /docs /docs/* /api-doc/* /avs/docs /avs/docs/* /avs/api-doc/*
+		expression {env.EXPOSE_DOCS} != "1"
+	}
+	handle @docs_disabled {
+		respond "Not Found" 404
+	}
+
 	# AVS endpoints
 	# AVS attestation endpoint
 	@avs_attest path /v1/attest /v1/attest/
